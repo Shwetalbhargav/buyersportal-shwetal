@@ -1,0 +1,2 @@
+.table { width: 100%; border-collapse: collapse; }
+.table th, .table td { padding: 0.625rem; border-bottom: 1px solid #e5e7eb; }
