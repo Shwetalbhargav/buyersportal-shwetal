@@ -1,15 +1,107 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
+// prisma/schema.prisma
+// Datasource & generator
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+// --- Enums (from the assignment) ---
+enum Purpose {
+  Buy
+  Rent
+}
+
+enum Status {
+  New
+  Qualified
+  Contacted
+  Visited
+  Negotiation
+  Converted
+  Dropped
+}
+
+enum City {
+  Chandigarh
+  Mohali
+  Zirakpur
+  Panchkula
+  Other
+}
+
+enum PropertyType {
+  Apartment
+  Villa
+  Plot
+  Office
+  Retail
+}
+
+enum BHK {
+  ONE    @map("1")
+  TWO    @map("2")
+  THREE  @map("3")
+  FOUR   @map("4")
+  Studio
+}
+
+enum Timeline {
+  M0_3      @map("0-3m")
+  M3_6      @map("3-6m")
+  GT6M      @map(">6m")
+  Exploring
+}
+
+enum Source {
+  Website
+  Referral
+  Walk_in  @map("Walk-in")
+  Call
+  Other
+}
+
+// --- Models ---
+model Buyer {
+  id           String       @id @default(uuid()) @db.Uuid
+  fullName     String       @db.VarChar(80)
+  email        String?      @db.VarChar(320)
+  phone        String       @db.VarChar(15)
+  city         City
+  propertyType PropertyType
+  bhk          BHK?
+  purpose      Purpose
+  budgetMin    Int?
+  budgetMax    Int?
+  timeline     Timeline
+  source       Source
+  status       Status       @default(New)
+  notes        String?      @db.VarChar(1000)
+  tags         String[]     @db.Text
+  ownerId      String       @db.Uuid
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  // Relations
+  history BuyerHistory[]
+
+  @@index([updatedAt])
+  // Helpful composite index for search (ILIKE handled in SQL, but index helps)
+  @@index([fullName, phone, email])
+}
+
+model BuyerHistory {
+  id        String   @id @default(uuid()) @db.Uuid
+  buyerId   String   @db.Uuid
+  changedBy String   @db.Uuid
+  changedAt DateTime @default(now())
+  diff      Json
+
+  // Relations
+  buyer Buyer @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+
+  @@index([buyerId, changedAt])
 }
