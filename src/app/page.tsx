@@ -98,7 +98,8 @@ function Card({
   action: string;
 }) {
   return (
-    <div className="group relative overflow-hidden rounded-2xl border bg-white p-6 transition-shadow hover:shadow-md">
+    <    
+      div className="group relative overflow-hidden rounded-2xl border bg-white p-6 transition-shadow hover:shadow-md">
       <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-slate-100 blur-2xl transition-transform group-hover:translate-x-2 group-hover:-translate-y-2" />
       <h3 className="relative text-base font-semibold">{title}</h3>
       <p className="relative mt-1 text-sm text-slate-600">{desc}</p>
@@ -108,6 +109,8 @@ function Card({
       >
         {action}
       </Link>
+
+      
     </div>
   );
 }

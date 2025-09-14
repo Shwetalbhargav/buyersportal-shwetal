@@ -1,4 +1,4 @@
-import { getBuyer } from "@/components/lib/api";
+import { getBuyer } from "@/lib/api";
 import BuyerForm from "@/components/buyers/BuyerForm";
 import HistoryList from "@/components/buyers/HistoryList";
 import GuardOwner from "@/components/buyers/GuardOwner";

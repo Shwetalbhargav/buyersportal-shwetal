@@ -51,3 +51,4 @@ const rec = { ...parsed.data, id, ownerId: "demo-user", createdAt: now, updatedA
 store.buyers.unshift(rec);
 store.history.push({ id: crypto.randomUUID(), buyerId: id, changedBy: "demo-user", changedAt: now, diff: { create: true } });
 return okJSON(rec, { status: 201 });
+}

@@ -1,20 +1,46 @@
-import { PAGE_SIZE } from "./constants";
-export function parseFilters(sp: URLSearchParams) {
-return {
-page: Number(sp.get("page") || 1),
-pageSize: PAGE_SIZE,
-city: sp.get("city") || undefined,
-propertyType: sp.get("propertyType") || undefined,
-status: sp.get("status") || undefined,
-timeline: sp.get("timeline") || undefined,
-q: sp.get("q") || undefined,
-sort: (sp.get("sort") as any) || "updatedAt.desc",
-};
-}
-export function buildQuery(obj: Record<string, any>) {
-const sp = new URLSearchParams();
-Object.entries(obj).forEach(([k, v]) => {
-if (v == null || v === "") return; sp.set(k, String(v));
+import { z } from "zod";
+import {
+  CityValues,
+  PropertyTypeValues,
+  StatusValues,
+  TimelineValues,
+  City,
+  PropertyType,
+  Status,
+  Timeline,
+} from "@/lib/types";
+
+const filtersSchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(10),
+  city: z.enum(CityValues).optional(),
+  propertyType: z.enum(PropertyTypeValues).optional(),
+  status: z.enum(StatusValues).optional(),
+  timeline: z.enum(TimelineValues).optional(),
+  q: z.string().optional(),
+  sort: z.string().optional(),
 });
-return sp.toString();
+
+export type BuyersFilters = {
+  page: number;
+  pageSize: number;
+  city?: City;
+  propertyType?: PropertyType;
+  status?: Status;
+  timeline?: Timeline;
+  q?: string;
+  sort?: string;
+};
+
+export function parseFilters(sp: URLSearchParams): BuyersFilters {
+  return filtersSchema.parse({
+    page: sp.get("page"),
+    pageSize: sp.get("pageSize"),
+    city: sp.get("city") ?? undefined,
+    propertyType: sp.get("propertyType") ?? undefined,
+    status: sp.get("status") ?? undefined,
+    timeline: sp.get("timeline") ?? undefined,
+    q: sp.get("q") ?? undefined,
+    sort: sp.get("sort") ?? undefined,
+  });
 }

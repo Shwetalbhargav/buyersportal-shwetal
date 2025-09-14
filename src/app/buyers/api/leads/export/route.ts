@@ -26,8 +26,7 @@ if (search) rows = rows.filter(r => [r.fullName, r.phone, r.email].join(" ").toL
 
 const headers = ["fullName","email","phone","city","propertyType","bhk","purpose","budgetMin","budgetMax","timeline","source","notes","tags","status"];
 const head = headers.join(",");
-const body = rows.map(r => headers.map(h => JSON.stringify((h === "tags" ? r.tags?.join("|") : (r as any)[h]) ?? "")).join(",")).join("
-");
+const body = rows.map(r => headers.map(h => JSON.stringify((h === "tags" ? r.tags?.join("|") : (r as any)[h]) ?? "")).join(",")).join("\n");
 const csv = `${head}
 ${body}`;
 return new Response(csv, { headers: { "content-type": "text/csv", "content-disposition": "attachment; filename=buyers.csv" } });

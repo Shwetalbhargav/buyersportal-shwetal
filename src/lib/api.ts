@@ -1,6 +1,6 @@
 import { BuyersFilters, Buyer } from "./types";
 import { buildQuery } from "./url";
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "/api"; // proxy by default
+const BASE = process.env.NEXT_PUBLIC_API_URL ?? "/api"; 
 
 
 export async function listBuyersSSR(filters: BuyersFilters, cookie?: string) {
