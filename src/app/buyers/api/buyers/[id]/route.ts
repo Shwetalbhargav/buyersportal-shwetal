@@ -25,7 +25,7 @@ type Buyer = {
 
 type BuyerUpdate = Partial<Omit<Buyer, "id">>;
 
-// Helper: extract the [id] dynamic segment from the URL path
+
 function getId(req: NextRequest): string {
   const parts = req.nextUrl.pathname.split("/");
   return parts[parts.length - 1] || "";
@@ -35,11 +35,7 @@ function getId(req: NextRequest): string {
 export async function GET(req: NextRequest) {
   const id = getId(req);
 
-  // TODO: fetch from DB e.g.:
-  // const buyer = await db.buyer.findUnique({ where: { id } });
-  // if (!buyer) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
-  // Demo response (remove when wired to DB)
+  
   const buyer: Buyer = {
     id,
     fullName: "Test User",
