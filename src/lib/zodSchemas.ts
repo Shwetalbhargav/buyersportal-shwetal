@@ -45,7 +45,7 @@ export const buyerCreate = z.object({
   }
 );
 
-export const buyerUpdate = buyerCreate.extend({
+export const buyerUpdate = buyerCreate.safeExtend({
   id: z.string().uuid(),
   updatedAt: z.string(),
 });

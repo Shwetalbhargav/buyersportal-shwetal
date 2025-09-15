@@ -1,23 +1,7 @@
-// src/app/page.tsx
-"use client";
-
+// src/app/dashboard/page.tsx
 import Link from "next/link";
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 
-export default function Home() {
-  const router = useRouter();
-
-  // If already logged in, bounce to dashboard
-  useEffect(() => {
-    fetch("/buyers/api/me", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((me) => {
-        if (me?.id) router.replace("/dashboard");
-      })
-      .catch(() => {});
-  }, [router]);
-
+export default function Dashboard() {
   return (
     <div className="space-y-12">
       {/* Hero */}
@@ -33,47 +17,50 @@ export default function Home() {
             Capture, search, and manage buyer leads in one streamlined workspace.
           </p>
 
-          {/* Primary CTAs: Login / Register */}
           <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link
-              href="/login"
+              href="/buyers/new"
               className="w-full rounded-lg bg-slate-900 px-5 py-3 text-center text-sm font-semibold text-white shadow-sm hover:bg-slate-800 sm:w-auto"
             >
-              Login
+              + Create Lead
             </Link>
             <Link
-              href="/register"
+              href="/buyers"
               className="w-full rounded-lg border border-slate-200 bg-white px-5 py-3 text-center text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:w-auto"
             >
-              Create an account
+              View Buyers
             </Link>
           </div>
 
           <p className="mt-4 text-xs text-slate-500">
-            Already logged in? You’ll be redirected to your dashboard automatically.
+            Need CSV?{" "}
+            <Link href="/buyers" className="underline underline-offset-4">
+              Import/Export from the list page
+            </Link>
+            .
           </p>
         </div>
       </section>
 
-      {/* Quick actions (optional previews) */}
+      {/* Quick actions */}
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card
           title="Add a New Buyer"
           desc="Create a buyer lead with contact and budget details."
-          href="/login"
-          action="Sign in to continue"
+          href="/buyers/new"
+          action="Create Lead"
         />
         <Card
           title="Search & Filter"
           desc="Find the right buyers by status, tags, or budget."
-          href="/login"
-          action="Sign in to continue"
+          href="/buyers"
+          action="Go to List"
         />
         <Card
           title="CSV Import/Export"
           desc="Bulk-import leads or export your data anytime."
-          href="/login"
-          action="Sign in to continue"
+          href="/buyers"
+          action="Open Tools"
         />
       </section>
 
