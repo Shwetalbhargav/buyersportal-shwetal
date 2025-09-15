@@ -14,6 +14,7 @@ type CreateEntryInput = {
 };
 
 export async function GET(_req: NextRequest) {
+  
   // TODO: list from DB
   const items: Entry[] = [];
   return NextResponse.json(items);

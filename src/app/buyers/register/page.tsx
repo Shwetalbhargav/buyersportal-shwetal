@@ -22,27 +22,33 @@ export default function RegisterPage() {
   }, [router]);
 
   async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setErr(null);
-    setLoading(true);
-    try {
-      const r = await fetch("/api/auth/register", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      if (!r.ok) {
-        const data = await r.json().catch(() => ({}));
-        throw new Error(data.error || "Registration failed");
-      }
-      router.replace("/dashboard");
-    } catch (e: any) {
-      setErr(e.message);
-    } finally {
-      setLoading(false);
+  e.preventDefault();
+  setErr(null);
+  setLoading(true);
+  try {
+    const r = await fetch("/api/auth/register", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (!r.ok) {
+      const data: { error?: string } = await r.json().catch(() => ({}));
+      throw new Error(data.error || "Registration failed");
     }
+
+    router.replace("/dashboard");
+  } catch (err) {
+    if (err instanceof Error) {
+      setErr(err.message);
+    } else {
+      setErr("Unexpected error");
+    }
+  } finally {
+    setLoading(false);
   }
+}
 
   return (
     <div className="mx-auto mt-16 max-w-md rounded-2xl border bg-white p-6">

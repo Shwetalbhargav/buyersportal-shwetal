@@ -27,3 +27,7 @@ export default function ImportCSVDialog() {
     </label>
   );
 }
+function importCsv(parsed: Record<string, string | number | boolean | null>[]) {
+    throw new Error("Function not implemented.");
+}
+
