@@ -1,6 +1,7 @@
 // src/lib/api.ts
 import { buildQuery, type QueryParams } from './url';
 import type { Buyer } from '@/lib/types';
+import type { BuyersFilters } from "@/lib/types";
 
 
 /** Allowed HTTP methods */
@@ -133,3 +134,38 @@ export const createBuyer = (body: Partial<Buyer>) =>
 
 export const updateBuyer = (id: string, body: Partial<Buyer>) =>
   patchJSON<Buyer>(`/buyers/api/buyers/${encodeURIComponent(id)}`, body);
+
+
+export function exportCsvUrl(filters: BuyersFilters): string {
+  const params = new URLSearchParams();
+
+  // Accept different naming conventions without changing BuyersFilters
+  const f = filters as unknown as {
+    search?: string;
+    q?: string;
+    term?: string;
+    status?: string | string[];
+    city?: string;
+    propertyType?: string;
+    timeline?: string;
+  };
+
+  const search = f.search ?? f.q ?? f.term;
+  if (typeof search === "string" && search) params.set("search", search);
+
+  if (Array.isArray(f.status) && f.status.length) {
+    params.set("status", f.status.join(","));
+  } else if (typeof f.status === "string" && f.status) {
+    params.set("status", f.status);
+  }
+
+  (["city", "propertyType", "timeline"] as const).forEach((k) => {
+    const v = f[k];
+    if (typeof v === "string" && v) params.set(k, v);
+  });
+
+  const qs = params.toString();
+  return `/api/buyers/export${qs ? `?${qs}` : ""}`;
+}
+
+export default api;
