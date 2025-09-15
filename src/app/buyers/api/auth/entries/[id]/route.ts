@@ -1,31 +1,39 @@
-import { NextRequest, NextResponse } from 'next/server';
+// src/app/buyers/api/auth/entries/[id]/route.ts
+import { NextRequest, NextResponse } from "next/server";
 
-type IdParams = { id: string };
+type Entry = {
+  id: string;
+  email: string;
+  status: "active" | "inactive";
+  notes: string | null;
+};
 
-type Entry = { id: string; email: string; status: "active" | "inactive"; notes: string | null };
+// Safely derive the dynamic [id] segment without relying on the 2nd arg
+function getId(req: NextRequest): string {
+  const segments = req.nextUrl.pathname.split("/");
+  return segments[segments.length - 1] || "";
+}
 
+// GET /buyers/api/auth/entries/[id]
+export async function GET(req: NextRequest) {
+  const id = getId(req);
 
-type EntryUpdate = Partial<Pick<Entry, 'email' | 'status' | 'notes'>>;
+  // TODO: replace with real DB fetch
+  const entry: Entry = {
+    id,
+    email: "user@example.com",
+    status: "active",
+    notes: null,
+  };
 
-export async function GET(req: NextRequest) {  
-  const pathname = req.nextUrl.pathname;            
-  const idFromPath = pathname.split("/").pop() || "";
-  const id = idFromPath || req.nextUrl.searchParams.get("id") || "";
-
-  // TODO: fetch from DB using `id`
-  const entry: Entry = { id, email: "user@example.com", status: "active", notes: null };
   return NextResponse.json(entry);
 }
-export async function PATCH(req: NextRequest, { params }: { params: IdParams }) {
-  const { id } = params;
-  const payload = (await req.json()) as EntryUpdate;
-  // TODO: update DB with payload
-  const updated: Entry = { id, email: payload.email ?? 'user@example.com', status: payload.status ?? 'active', notes: payload.notes ?? null };
-  return NextResponse.json(updated);
-}
 
-export async function DELETE(_req: NextRequest, { params }: { params: IdParams }) {
-  const { id } = params;
-  // TODO: delete in DB
-  return NextResponse.json({ deleted: id });
+// DELETE /buyers/api/auth/entries/[id]
+export async function DELETE(req: NextRequest) {
+  const id = getId(req);
+
+  // TODO: perform deletion in DB using `id`
+  // On success, respond with 204 No Content
+  return new NextResponse(null, { status: 204 });
 }
