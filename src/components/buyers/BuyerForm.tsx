@@ -1,188 +1,315 @@
-// src/lib/csv.ts
-import type { CsvRow } from '@/lib/zodSchemas';
+"use client";
+import React, { useMemo, useState } from "react";
+import { buyerCreate, buyerUpdate } from "@/lib/zodSchemas";
+import { createBuyer, updateBuyer } from "@/lib/api";
+import type { Buyer, City, PropertyType } from "@/lib/types";
 
-export interface CsvStringifyOptions {
-  /** CSV delimiter (default ',') */
-  delimiter?: string;
-  /** Newline to use (default '\n') */
-  newline?: '\n' | '\r\n';
-  /** Order of columns; if omitted, inferred from first row */
-  columns?: string[];
-}
-
-export interface CsvParseOptions {
-  /** CSV delimiter (default ',') */
-  delimiter?: string;
-  /** When true, trims surrounding whitespace of unquoted fields (default true) */
-  trim?: boolean;
-}
+type Mode = "create" | "edit";
 
 /**
- * Convert array of objects (CsvRow) to CSV string.
- * - Escapes quotes and wraps fields containing delimiter/quote/newline.
+ * UI state mirrors form controls:
+ * - strings for inputs/selects
+ * - tags as string[]
+ * We translate this to the domain Partial<Buyer> on submit.
  */
-export function toCsv(rows: CsvRow[], opts: CsvStringifyOptions = {}): string {
-  if (rows.length === 0) return '';
-  const delimiter = opts.delimiter ?? ',';
-  const nl = opts.newline ?? '\n';
+type UIValues = {
+  fullName: string;
+  phone: string;
+  email: string;
+  city: "" | City;
+  propertyType: "" | PropertyType;
+  bhk: "" | "Studio" | "1" | "2" | "3" | "4";
+  purpose: "" | "Buy" | "Rent";
+  budgetMin: string; // numeric string
+  budgetMax: string; // numeric string
+  timeline: "" | "0-3m" | "3-6m" | ">6m" | "Exploring";
+  source: "" | "Website" | "Referral" | "Walk-in" | "Call" | "Other";
+  status:
+    | "New"
+    | "Qualified"
+    | "Contacted"
+    | "Visited"
+    | "Negotiation"
+    | "Converted"
+    | "Dropped";
+  tags: string[];
+  notes: string;
+};
 
-  const columns = opts.columns && opts.columns.length > 0
-    ? opts.columns
-    : Object.keys(rows[0] as Record<string, unknown>);
-
-  const lines: string[] = [];
-  lines.push(columns.join(delimiter));
-
-  for (const row of rows) {
-    const rec = row as Record<string, unknown>;
-    const fields = columns.map((col) => escapeCsvField(valueToString(rec[col]), delimiter));
-    lines.push(fields.join(delimiter));
-  }
-
-  return lines.join(nl);
+function toMsg(e: unknown): string {
+  return e instanceof Error ? e.message : "Failed";
 }
 
-/**
- * Parse CSV text to array of CsvRow with header row detection.
- * - Supports quoted fields, escaped quotes ("") and embedded newlines.
- * - Uses first line as headers.
- */
-export function parseCsv(text: string, opts: CsvParseOptions = {}): CsvRow[] {
-  const delimiter = opts.delimiter ?? ',';
-  const trim = opts.trim ?? true;
-
-  const input = stripBom(text);
-  if (input.trim().length === 0) return [];
-
-  const lines = tokenizeCsv(input, delimiter);
-  if (lines.length === 0) return [];
-
-  const headers = (lines[0] ?? []).map(h => (trim ? h.trim() : h));
-  const out: CsvRow[] = [];
-
-  for (let i = 1; i < lines.length; i += 1) {
-    const cols = lines[i] ?? [];
-    const obj: Record<string, unknown> = {};
-
-    for (let c = 0; c < headers.length; c += 1) {
-      const key = headers[c] ?? `col_${c}`;
-      const raw = cols[c] ?? '';
-      obj[key] = trim ? raw.trim() : raw;
-    }
-
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-    out.push(obj as CsvRow);
-  }
-
-  return out;
+function toUI(initial?: Buyer): UIValues {
+  return {
+    fullName: initial?.fullName ?? "",
+    phone: initial?.phone ?? "",
+    email: initial?.email ?? "",
+    city: (initial?.city as City | null) ?? "",
+    propertyType: (initial?.propertyType as PropertyType | null) ?? "",
+    bhk:
+      initial?.bhk == null
+        ? ""
+        : initial.bhk === "Studio"
+        ? "Studio"
+        : (String(initial.bhk) as "1" | "2" | "3" | "4"),
+    purpose: (initial?.purpose as "Buy" | "Rent" | null) ?? "",
+    budgetMin:
+      typeof initial?.budgetMin === "number" ? String(initial!.budgetMin) : "",
+    budgetMax:
+      typeof initial?.budgetMax === "number" ? String(initial!.budgetMax) : "",
+    timeline: (initial?.timeline as UIValues["timeline"] | null) ?? "",
+    source: (initial?.source as UIValues["source"] | null) ?? "",
+    status: initial?.status ?? "New",
+    tags: initial?.tags ?? [],
+    notes: initial?.notes ?? "",
+  };
 }
 
-/* -------------------- helpers -------------------- */
+export default function BuyerForm({
+  mode,
+  initial,
+}: {
+  mode: Mode;
+  initial?: Buyer;
+}) {
+  // FIX 1: initializer returns UIValues only (not a union with Buyer)
+  const [form, setForm] = useState<UIValues>(() =>
+    initial ? toUI(initial) : toUI()
+  );
+  const [msg, setMsg] = useState<string | null>(null);
 
-function valueToString(v: unknown): string {
-  if (v === null || v === undefined) return '';
-  if (typeof v === 'string') return v;
-  if (typeof v === 'number' || typeof v === 'boolean') return String(v);
-  // Fallback for objects/arrays/dates: JSON
-  try {
-    return JSON.stringify(v);
-  } catch {
-    return String(v);
-  }
-}
+  const isResi = useMemo(
+    () => form.propertyType === "Apartment" || form.propertyType === "Villa",
+    [form.propertyType]
+  );
 
-function escapeCsvField(s: string, delimiter: string): string {
-  // Quote when field contains delimiter, quote, or newline
-  if (s.includes(delimiter) || s.includes('"') || /\r|\n/.test(s)) {
-    return `"${s.replace(/"/g, '""')}"`;
-  }
-  return s;
-}
+  // FIX 2: separate binders for input/select vs textarea to keep onChange types sound
+  const bindInputOrSelect = <K extends keyof UIValues>(
+    key: K,
+    coerce?: "number"
+  ) => {
+    const value = form[key] as string | number | string[];
+    return {
+      value: typeof value === "string" || typeof value === "number" ? value : "",
+      onChange: (
+        e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+      ) => {
+        const raw = e.target.value;
+        setForm((s) => ({ ...s, [key]: coerce === "number" ? String(raw) : raw } as UIValues));
+      },
+    };
+  };
 
-function stripBom(s: string): string {
-  return s.charCodeAt(0) === 0xfeff ? s.slice(1) : s;
-}
+  const bindTextarea = <K extends keyof UIValues>(key: K) => ({
+    value: (form[key] as string) ?? "",
+    onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) =>
+      setForm((s) => ({ ...s, [key]: e.target.value } as UIValues)),
+  });
 
-/**
- * Tokenizes CSV text into rows of fields honoring quotes/escapes/newlines.
- * Returns array of rows, each a string[] of fields.
- */
-function tokenizeCsv(text: string, delimiter: string): string[][] {
-  const rows: string[][] = [];
-  let field = '';
-  let row: string[] = [];
+  function toDomain(): Partial<Buyer> {
+    // FIX 3: convert UI strings to domain types expected by Buyer / zod schema
+    const bhkVal =
+      form.bhk === ""
+        ? undefined
+        : form.bhk === "Studio"
+        ? "Studio"
+        : (Number(form.bhk) as 1 | 2 | 3 | 4);
 
-  let i = 0;
-  const n = text.length;
-  let inQuotes = false;
+    const payload: Partial<Buyer> = {
+      fullName: form.fullName.trim() || undefined,
+      phone: form.phone.trim() || undefined,
+      email: form.email.trim() || undefined,
+      city: form.city || undefined,
+      propertyType: form.propertyType || undefined,
+      bhk: bhkVal,
+      purpose: form.purpose || undefined,
+      budgetMin: form.budgetMin ? Number(form.budgetMin) : undefined,
+      budgetMax: form.budgetMax ? Number(form.budgetMax) : undefined,
+      timeline: form.timeline || undefined,
+      source: form.source || undefined,
+      status: form.status,
+      tags: form.tags.length ? form.tags : undefined,
+      notes: form.notes || undefined,
+    };
 
-  while (i < n) {
-    const ch = text[i] ?? '';
-
-    if (inQuotes) {
-      if (ch === '"') {
-        const next = text[i + 1] ?? '';
-        if (next === '"') {
-          field += '"'; // escaped quote
-          i += 2;
-          continue;
-        }
-        inQuotes = false;
-        i += 1;
-        continue;
-      }
-      field += ch;
-      i += 1;
-      continue;
-    }
-
-    // not in quotes
-    if (ch === '"') {
-      inQuotes = true;
-      i += 1;
-      continue;
-    }
-    if (ch === delimiter) {
-      row.push(field);
-      field = '';
-      i += 1;
-      continue;
-    }
-    if (ch === '\n') {
-      row.push(field);
-      rows.push(row);
-      row = [];
-      field = '';
-      i += 1;
-      continue;
-    }
-    if (ch === '\r') {
-      // handle CRLF / CR
-      const next = text[i + 1] ?? '';
-      if (next === '\n') {
-        row.push(field);
-        rows.push(row);
-        row = [];
-        field = '';
-        i += 2;
-        continue;
-      } else {
-        row.push(field);
-        rows.push(row);
-        row = [];
-        field = '';
-        i += 1;
-        continue;
+    // If editing, include id/updatedAt so your existing zod schema logic stays the same
+    if (initial?.id) {
+      (payload as { id: string; updatedAt?: string }).id = initial.id;
+      if (initial.updatedAt) {
+        (payload as { updatedAt?: string }).updatedAt = initial.updatedAt;
       }
     }
 
-    field += ch;
-    i += 1;
+    return payload;
   }
 
-  // flush last field/row
-  row.push(field);
-  rows.push(row);
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setMsg(null);
+    try {
+      const payload = toDomain();
+      // Validate with your existing schemas (unchanged logic)
+      const schema = mode === "create" ? buyerCreate : buyerUpdate;
+      const parsed = schema.parse(payload);
 
-  return rows;
+      if (mode === "create") {
+        await createBuyer(parsed);
+      } else if (initial?.id) {
+        await updateBuyer(initial.id, parsed);
+      }
+      setMsg("Saved ✅");
+    } catch (err) {
+      setMsg(toMsg(err));
+    }
+  }
+
+  return (
+    <form onSubmit={onSubmit} className="space-y-3 bg-white p-4 rounded-lg">
+      {msg && <div className="text-sm text-gray-700">{msg}</div>}
+      <div className="grid sm:grid-cols-2 gap-3">
+        <input
+          className="border p-2 rounded"
+          placeholder="Full Name"
+          {...bindInputOrSelect("fullName")}
+        />
+        <input
+          className="border p-2 rounded"
+          placeholder="Phone"
+          {...bindInputOrSelect("phone")}
+        />
+        <input
+          className="border p-2 rounded"
+          placeholder="Email"
+          {...bindInputOrSelect("email")}
+        />
+        <select className="border p-2 rounded" {...bindInputOrSelect("city")}>
+          <option value="">City</option>
+          {["Chandigarh", "Mohali", "Zirakpur", "Panchkula", "Other"].map(
+            (c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            )
+          )}
+        </select>
+
+        <select
+          className="border p-2 rounded"
+          {...bindInputOrSelect("propertyType")}
+        >
+          <option value="">Property Type</option>
+          {["Apartment", "Villa", "Plot", "Office", "Retail"].map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+
+        {isResi && (
+          <select className="border p-2 rounded" {...bindInputOrSelect("bhk")}>
+            <option value="">BHK</option>
+            {["Studio", "1", "2", "3", "4"].map((b) => (
+              <option key={b} value={b}>
+                {b}
+              </option>
+            ))}
+          </select>
+        )}
+
+        <select
+          className="border p-2 rounded"
+          {...bindInputOrSelect("purpose")}
+        >
+          <option value="">Purpose</option>
+          {["Buy", "Rent"].map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+        </select>
+
+        <input
+          className="border p-2 rounded"
+          placeholder="Budget Min"
+          type="number"
+          {...bindInputOrSelect("budgetMin", "number")}
+        />
+        <input
+          className="border p-2 rounded"
+          placeholder="Budget Max"
+          type="number"
+          {...bindInputOrSelect("budgetMax", "number")}
+        />
+
+        <select
+          className="border p-2 rounded"
+          {...bindInputOrSelect("timeline")}
+        >
+          <option value="">Timeline</option>
+          {["0-3m", "3-6m", ">6m", "Exploring"].map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
+
+        <select className="border p-2 rounded" {...bindInputOrSelect("source")}>
+          <option value="">Source</option>
+          {["Website", "Referral", "Walk-in", "Call", "Other"].map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+
+        <select className="border p-2 rounded" {...bindInputOrSelect("status")}>
+          {[
+            "New",
+            "Qualified",
+            "Contacted",
+            "Visited",
+            "Negotiation",
+            "Converted",
+            "Dropped",
+          ].map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+
+        {/* Tags: comma-separated input → array */}
+        <input
+          className="border p-2 rounded"
+          placeholder="tag1, tag2"
+          value={(form.tags ?? []).join(", ")}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            setForm((s) => ({
+              ...s,
+              tags: e.target.value
+                .split(",")
+                .map((t) => t.trim())
+                .filter((t) => t.length > 0),
+            }))
+          }
+        />
+      </div>
+
+      <textarea
+        className="border p-2 rounded w-full"
+        rows={4}
+        placeholder="Notes"
+        {...bindTextarea("notes")}
+      />
+
+      <div className="flex gap-2">
+        <button className="border px-4 py-2 rounded">Save</button>
+      </div>
+
+      {mode === "edit" && (
+        <input type="hidden" value={String(initial?.updatedAt ?? "")} readOnly />
+      )}
+    </form>
+  );
 }

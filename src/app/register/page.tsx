@@ -16,13 +16,10 @@ export default function RegisterPage() {
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
 
-  // If already logged in, bounce to dashboard
   useEffect(() => {
     fetch("/buyers/api/me", { credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
-      .then((me: Me) => {
-        if (me?.id) router.replace("/dashboard");
-      })
+      .then((me: Me) => { if (me?.id) router.replace("/dashboard"); })
       .catch(() => {});
   }, [router]);
 
@@ -64,7 +61,6 @@ export default function RegisterPage() {
             autoComplete="username"
           />
         </label>
-
         <label className="block">
           <span className="text-sm">Password</span>
           <input
@@ -76,20 +72,11 @@ export default function RegisterPage() {
             autoComplete="new-password"
           />
         </label>
-
         {err && <p className="text-sm text-red-600">{err}</p>}
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-lg bg-slate-900 px-4 py-2 text-white disabled:opacity-60"
-        >
+        <button type="submit" disabled={loading} className="w-full rounded-lg bg-slate-900 px-4 py-2 text-white disabled:opacity-60">
           {loading ? "Creating..." : "Create account"}
         </button>
-
-        <p className="text-sm text-slate-600">
-          Already have an account? <a href="/login" className="underline">Login</a>
-        </p>
+        <p className="text-sm text-slate-600">Already have an account? <a href="/login" className="underline">Login</a></p>
       </form>
     </div>
   );

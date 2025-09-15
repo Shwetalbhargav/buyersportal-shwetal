@@ -1,5 +1,7 @@
 // src/lib/api.ts
 import { buildQuery, type QueryParams } from './url';
+import type { Buyer } from '@/lib/types';
+
 
 /** Allowed HTTP methods */
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -125,3 +127,12 @@ export const patchJSON = <T>(path: string, body?: unknown, opts?: Omit<ApiOption
 
 export const deleteJSON = <T>(path: string, opts?: Omit<ApiOptions, 'method' | 'body'>) =>
   api<T>(path, { ...(opts ?? {}), method: 'DELETE' });
+
+export const getBuyer = (id: string) =>
+  getJSON<Buyer>(`/buyers/api/buyers/${encodeURIComponent(id)}`);
+
+export const createBuyer = (body: Partial<Buyer>) =>
+  postJSON<Buyer>(`/buyers/api/buyers`, body);
+
+export const updateBuyer = (id: string, body: Partial<Buyer>) =>
+  patchJSON<Buyer>(`/buyers/api/buyers/${encodeURIComponent(id)}`, body);
