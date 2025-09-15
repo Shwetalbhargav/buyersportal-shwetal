@@ -2,22 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 
 type IdParams = { id: string };
 
-type Entry = {
-  id: string;
-  email: string;
-  status: 'active' | 'inactive';
-  notes?: string | null;
-};
+type Entry = { id: string; email: string; status: "active" | "inactive"; notes: string | null };
+
 
 type EntryUpdate = Partial<Pick<Entry, 'email' | 'status' | 'notes'>>;
 
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<IdParams> }
-) {
-  const { id } = await params;
+export async function GET(req: NextRequest) {  
+  const pathname = req.nextUrl.pathname;            
+  const idFromPath = pathname.split("/").pop() || "";
+  const id = idFromPath || req.nextUrl.searchParams.get("id") || "";
 
-  // TODO: fetch from DB
+  // TODO: fetch from DB using `id`
   const entry: Entry = { id, email: "user@example.com", status: "active", notes: null };
   return NextResponse.json(entry);
 }
