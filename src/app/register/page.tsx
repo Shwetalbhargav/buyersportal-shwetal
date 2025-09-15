@@ -1,27 +1,32 @@
-// src/app/register/page.tsx
 "use client";
-
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+type Me = { id: string } | null;
+type RegisterResponse = { id: string } | { error?: string };
+
+function errText(e: unknown): string {
+  return e instanceof Error ? e.message : "Registration failed";
+}
+
 export default function RegisterPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
   const [err, setErr] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<boolean>(false);
 
   // If already logged in, bounce to dashboard
   useEffect(() => {
     fetch("/buyers/api/me", { credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
-      .then((me) => {
+      .then((me: Me) => {
         if (me?.id) router.replace("/dashboard");
       })
       .catch(() => {});
   }, [router]);
 
-  async function onSubmit(e: React.FormEvent) {
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setErr(null);
     setLoading(true);
@@ -33,12 +38,12 @@ export default function RegisterPage() {
         body: JSON.stringify({ email, password }),
       });
       if (!r.ok) {
-        const data = await r.json().catch(() => ({}));
-        throw new Error(data.error || "Registration failed");
+        const data = (await r.json().catch(() => ({}))) as Partial<RegisterResponse>;
+        throw new Error((data as { error?: string })?.error ?? "Registration failed");
       }
       router.replace("/dashboard");
-    } catch (e: any) {
-      setErr(e.message);
+    } catch (e) {
+      setErr(errText(e));
     } finally {
       setLoading(false);
     }
@@ -54,7 +59,7 @@ export default function RegisterPage() {
             type="email"
             className="mt-1 w-full rounded-lg border px-3 py-2"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
             required
             autoComplete="username"
           />
@@ -66,7 +71,7 @@ export default function RegisterPage() {
             type="password"
             className="mt-1 w-full rounded-lg border px-3 py-2"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
             required
             autoComplete="new-password"
           />
@@ -83,10 +88,7 @@ export default function RegisterPage() {
         </button>
 
         <p className="text-sm text-slate-600">
-          Already have an account?{" "}
-          <a href="/login" className="underline">
-            Login
-          </a>
+          Already have an account? <a href="/login" className="underline">Login</a>
         </p>
       </form>
     </div>

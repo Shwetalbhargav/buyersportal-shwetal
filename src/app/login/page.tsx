@@ -1,16 +1,15 @@
-// src/app/register/page.tsx
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type Me = { id: string } | null;
-type RegisterResponse = { id: string } | { error?: string };
+type LoginResponse = { ok: true } | { ok: false; error?: string };
 
-function errText(e: unknown): string {
-  return e instanceof Error ? e.message : "Registration failed";
+function msgFromError(e: unknown): string {
+  return e instanceof Error ? e.message : "Login failed";
 }
 
-export default function RegisterPage() {
+export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
@@ -31,19 +30,19 @@ export default function RegisterPage() {
     setErr(null);
     setLoading(true);
     try {
-      const r = await fetch("/buyers/api/auth/register", {
+      const r = await fetch("/buyers/api/auth/login", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
       if (!r.ok) {
-        const data = (await r.json().catch(() => ({}))) as Partial<RegisterResponse>;
-        throw new Error((data as { error?: string })?.error ?? "Registration failed");
+        const data = (await r.json().catch(() => ({}))) as Partial<LoginResponse>;
+        throw new Error((data as { error?: string })?.error ?? "Login failed");
       }
       router.replace("/dashboard");
     } catch (e) {
-      setErr(errText(e));
+      setErr(msgFromError(e));
     } finally {
       setLoading(false);
     }
@@ -51,7 +50,7 @@ export default function RegisterPage() {
 
   return (
     <div className="mx-auto mt-16 max-w-md rounded-2xl border bg-white p-6">
-      <h1 className="text-xl font-semibold">Create your account</h1>
+      <h1 className="text-xl font-semibold">Login</h1>
       <form className="mt-4 space-y-3" onSubmit={onSubmit}>
         <label className="block">
           <span className="text-sm">Email</span>
@@ -64,7 +63,6 @@ export default function RegisterPage() {
             autoComplete="username"
           />
         </label>
-
         <label className="block">
           <span className="text-sm">Password</span>
           <input
@@ -73,22 +71,19 @@ export default function RegisterPage() {
             value={password}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
             required
-            autoComplete="new-password"
+            autoComplete="current-password"
           />
         </label>
-
         {err && <p className="text-sm text-red-600">{err}</p>}
-
         <button
           type="submit"
           disabled={loading}
           className="w-full rounded-lg bg-slate-900 px-4 py-2 text-white disabled:opacity-60"
         >
-          {loading ? "Creating..." : "Create account"}
+          {loading ? "Signing in..." : "Sign in"}
         </button>
-
         <p className="text-sm text-slate-600">
-          Already have an account? <a href="/login" className="underline">Login</a>
+          No account? <a href="/register" className="underline">Register</a>
         </p>
       </form>
     </div>
