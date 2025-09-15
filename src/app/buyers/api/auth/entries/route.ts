@@ -13,7 +13,7 @@ type CreateEntryInput = {
   notes?: string | null;
 };
 
-export async function GET(_req: NextRequest) {
+export async function GET() {
   
   // TODO: list from DB
   const items: Entry[] = [];

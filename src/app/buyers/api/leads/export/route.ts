@@ -15,7 +15,7 @@ function csvEscape(s: string): string {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-export async function GET(_req: NextRequest) {
+export async function GET() {
   // TODO: pull rows from DB
   const rows: CsvRow[] = [];
   const csv = toCsv(rows);

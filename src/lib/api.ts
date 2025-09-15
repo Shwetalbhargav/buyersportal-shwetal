@@ -75,7 +75,6 @@ export async function api<T>(path: string, opts: ApiOptions = {}): Promise<T> {
 
   // Fast path for no-content statuses
   if (res.status === 204 || res.status === 205) {
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
     return undefined as unknown as T;
   }
 
@@ -100,12 +99,10 @@ export async function api<T>(path: string, opts: ApiOptions = {}): Promise<T> {
   }
 
   if (isJson) {
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-    return (await res.json()) as T;
+     return (await res.json()) as T;
   }
 
-  // If server returned non-JSON content (e.g., CSV/text), cast to T so callers can opt-in.
-  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+  
   return (payloadText ?? '') as unknown as T;
 }
 

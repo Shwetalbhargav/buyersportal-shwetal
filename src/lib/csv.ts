@@ -70,7 +70,7 @@ export function parseCsv(text: string, opts: CsvParseOptions = {}): CsvRow[] {
       obj[key] = trim ? raw.trim() : raw;
     }
 
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+    
     out.push(obj as CsvRow);
   }
 

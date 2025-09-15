@@ -39,11 +39,14 @@ export default function RegisterPage() {
         throw new Error((data as { error?: string })?.error ?? "Registration failed");
       }
       router.replace("/dashboard");
-    } catch (e) {
-      setErr(errText(e));
-    } finally {
-      setLoading(false);
-    }
+    } catch (err: unknown) {
+  if (err instanceof Error) {
+    setErr(err.message);
+  } else {
+    setErr("Unexpected error");
+  }
+}
+
   }
 
   return (
