@@ -1,51 +1,33 @@
-// app/api/entries/[id]/route.ts
-import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-import { requireUser } from "@/lib/auth";
+import { NextRequest, NextResponse } from 'next/server';
 
-const prisma = new PrismaClient();
+type IdParams = { id: string };
 
-export async function PUT(_req: Request, { params }: { params: { id: string } }) {
-  try {
-    const req = _req as any;
-    const user = requireUser(req);
-    const body = await _req.json();
+type Entry = {
+  id: string;
+  email: string;
+  status: 'active' | 'inactive';
+  notes?: string | null;
+};
 
-    const entry = await prisma.entry.findUnique({ where: { id: params.id } });
-    if (!entry) return NextResponse.json({ error: "Not found" }, { status: 404 });
+type EntryUpdate = Partial<Pick<Entry, 'email' | 'status' | 'notes'>>;
 
-    if (entry.ownerId !== user.id) {
-      return NextResponse.json({ error: "Forbidden (not your entry)" }, { status: 403 });
-    }
-
-    const updated = await prisma.entry.update({
-      where: { id: params.id },
-      data: { title: body.title ?? entry.title, content: body.content ?? entry.content },
-    });
-
-    return NextResponse.json(updated);
-  } catch (e: any) {
-    if (e?.message === "Unauthorized") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    return NextResponse.json({ error: "Failed to update" }, { status: 400 });
-  }
+export async function GET(_req: NextRequest, { params }: { params: IdParams }) {
+  const { id } = params;
+  // TODO: fetch from DB
+  const entry: Entry = { id, email: 'user@example.com', status: 'active', notes: null };
+  return NextResponse.json(entry);
 }
 
-export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
-  try {
-    const req = _req as any;
-    const user = requireUser(req);
+export async function PATCH(req: NextRequest, { params }: { params: IdParams }) {
+  const { id } = params;
+  const payload = (await req.json()) as EntryUpdate;
+  // TODO: update DB with payload
+  const updated: Entry = { id, email: payload.email ?? 'user@example.com', status: payload.status ?? 'active', notes: payload.notes ?? null };
+  return NextResponse.json(updated);
+}
 
-    const entry = await prisma.entry.findUnique({ where: { id: params.id } });
-    if (!entry) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
-    if (entry.ownerId !== user.id) {
-      return NextResponse.json({ error: "Forbidden (not your entry)" }, { status: 403 });
-    }
-
-    await prisma.entry.delete({ where: { id: params.id } });
-    return new NextResponse(null, { status: 204 });
-  } catch (e: any) {
-    if (e?.message === "Unauthorized") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    return NextResponse.json({ error: "Failed to delete" }, { status: 400 });
-  }
+export async function DELETE(_req: NextRequest, { params }: { params: IdParams }) {
+  const { id } = params;
+  // TODO: delete in DB
+  return NextResponse.json({ deleted: id });
 }

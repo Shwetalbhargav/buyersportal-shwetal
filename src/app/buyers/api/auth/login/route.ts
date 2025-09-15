@@ -1,19 +1,14 @@
-// app/api/auth/register/route.ts
-import { NextResponse } from "next/server";
-import { register } from "@/lib/auth";
+import { NextRequest, NextResponse } from 'next/server';
 
-export async function POST(req: Request) {
-  try {
-    const { email, password } = await req.json();
-    if (!email || !password) return NextResponse.json({ error: "Email & password required" }, { status: 400 });
+type LoginInput = { email: string; password: string };
+type LoginResult = { ok: true; token: string } | { ok: false; message: string };
 
-    const { user, token } = await register(email, password);
-
-    const res = NextResponse.json({ user });
-    // httpOnly cookie is safer than localStorage
-    res.cookies.set("token", token, { httpOnly: true, secure: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 7 });
-    return res;
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message || "Failed to register" }, { status: 400 });
-  }
+export async function POST(req: NextRequest) {
+  const body = (await req.json()) as LoginInput;
+  // TODO: real auth check
+  const ok = Boolean(body.email && body.password);
+  const result: LoginResult = ok
+    ? { ok: true, token: 'mock-token' }
+    : { ok: false, message: 'Invalid credentials' };
+  return NextResponse.json(result, { status: ok ? 200 : 401 });
 }

@@ -44,3 +44,17 @@ export function parseFilters(sp: URLSearchParams): BuyersFilters {
     sort: sp.get("sort") ?? undefined,
   });
 }
+
+
+export type QueryValue = string | number | boolean | null | undefined;
+export type QueryParams = Record<string, QueryValue | QueryValue[]>;
+export function buildQuery(params: QueryParams): string {
+  const sp = new URLSearchParams();
+  Object.entries(params ?? {}).forEach(([key, val]) => {
+    if (val === null || val === undefined) return;
+    const push = (v: Exclude<QueryValue, null | undefined>) =>
+      sp.append(key, String(v));
+    Array.isArray(val) ? val.forEach(v => v != null && push(v)) : push(val);
+  });
+  return sp.toString();
+}

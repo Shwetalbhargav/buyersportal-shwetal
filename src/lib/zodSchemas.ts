@@ -49,3 +49,9 @@ export const buyerUpdate = buyerCreate.safeExtend({
   id: z.string().uuid(),
   updatedAt: z.string(),
 });
+
+export const csvRow = z.record(
+  z.string(),
+  z.union([z.string(), z.number(), z.boolean(), z.null()]) 
+);
+export type CsvRow = z.infer<typeof csvRow>;

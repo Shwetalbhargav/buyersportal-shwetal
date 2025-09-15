@@ -1,16 +1,32 @@
-export type _BuyerRec = import("@/lib/types").Buyer;
-const mem: { buyers: _BuyerRec[]; history: any[] } = { buyers: [], history: [] };
-export default mem;
+import type { CsvRow } from '@/lib/zodSchemas';
 
+export type Lead = {
+  id: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  tags?: string[];
+  [k: string]: unknown;
+};
 
-// src/app/api/buyers/_util.ts
-import { NextRequest } from "next/server";
-export function getQuery(req: NextRequest) {
-const { searchParams } = new URL(req.url);
-return searchParams;
-}
-export function okJSON(data: any, init: ResponseInit = {}) { return new Response(JSON.stringify(data), { ...init, headers: { "content-type": "application/json" } }); }
-export function notFound() { return new Response("Not found", { status: 404 }); }
-export function badRequest(msg: string) { return new Response(msg, { status: 400 }); }
-export function conflict(msg = "Conflict") { return new Response(msg, { status: 409 }); }
-export const isProxy = !!process.env.BACKEND_URL;
+const db: Map<string, Lead> = new Map();
+
+export const LeadsStore = {
+  get(id: string): Lead | undefined {
+    return db.get(id);
+  },
+  upsert(lead: Lead): Lead {
+    db.set(lead.id, lead);
+    return lead;
+  },
+  bulkInsert(rows: CsvRow[]): number {
+    rows.forEach((r, i) => {
+      const id = String((r as Record<string, unknown>).id ?? `row-${i}`);
+      db.set(id, { id, ...(r as Record<string, unknown>) } as Lead);
+    });
+    return rows.length;
+  },
+  all(): Lead[] {
+    return Array.from(db.values());
+  },
+};

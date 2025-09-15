@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { PrismaClient } from "@prisma/client";
 import type { NextRequest } from "next/server";
-
+import { cookies } from 'next/headers';
 const prisma = new PrismaClient();
 
 // Keep secret in env
@@ -11,6 +11,13 @@ const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 const JWT_EXPIRES_IN = "7d";
 
 export type AuthUser = { id: string; email: string };
+
+export type UserRole = 'OWNER' | 'ADMIN' | 'MEMBER';
+export interface SessionUser {
+  id: string;
+  email: string;
+  role?: UserRole;
+}
 
 export async function register(email: string, password: string): Promise<{ user: AuthUser; token: string }> {
   const existing = await prisma.user.findUnique({ where: { email } });
@@ -62,4 +69,22 @@ export function requireUser(req: NextRequest): AuthUser {
   const user = verifyToken(token);
   if (!user) throw new Error("Unauthorized");
   return user;
+}
+
+export async function getCurrentUser(): Promise<SessionUser | null> {
+  const token = (await cookies()).get('session')?.value;
+  if (!token) return null;
+
+  // Example: if your token is a base64 JSON string:
+  try {
+    const parsed = JSON.parse(Buffer.from(token, 'base64').toString('utf8')) as Partial<SessionUser>;
+    if (!parsed?.id || !parsed?.email) return null;
+    return {
+      id: String(parsed.id),
+      email: String(parsed.email),
+      role: (parsed.role as UserRole) ?? 'MEMBER',
+    };
+  } catch {
+    return null;
+  }
 }

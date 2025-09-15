@@ -1,36 +1,32 @@
-// app/api/entries/route.ts
-import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-import { requireUser } from "@/lib/auth";
+import { NextRequest, NextResponse } from 'next/server';
 
-const prisma = new PrismaClient();
+type Entry = {
+  id: string;
+  email: string;
+  status: 'active' | 'inactive';
+  notes?: string | null;
+};
 
-export async function GET(req: Request) {
+type CreateEntryInput = {
+  email: string;
+  status?: 'active' | 'inactive';
+  notes?: string | null;
+};
 
-  try {
-    requireUser(req as any); 
-    const entries = await prisma.entry.findMany({
-      orderBy: { createdAt: "desc" },
-      select: { id: true, title: true, content: true, ownerId: true, createdAt: true, updatedAt: true },
-    });
-    return NextResponse.json(entries);
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export async function GET(_req: NextRequest) {
+  // TODO: list from DB
+  const items: Entry[] = [];
+  return NextResponse.json(items);
 }
 
-export async function POST(req: Request) {
-  try {
-    const user = requireUser(req as any);
-    const { title, content } = await req.json();
-    if (!title) return NextResponse.json({ error: "title is required" }, { status: 400 });
-
-    const created = await prisma.entry.create({
-      data: { title, content: content ?? "", ownerId: user.id },
-    });
-    return NextResponse.json(created, { status: 201 });
-  } catch (e: any) {
-    if (e?.message === "Unauthorized") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    return NextResponse.json({ error: "Failed to create" }, { status: 400 });
-  }
+export async function POST(req: NextRequest) {
+  const body = (await req.json()) as CreateEntryInput;
+  // TODO: insert to DB
+  const created: Entry = {
+    id: crypto.randomUUID(),
+    email: body.email,
+    status: body.status ?? 'active',
+    notes: body.notes ?? null,
+  };
+  return NextResponse.json(created, { status: 201 });
 }
