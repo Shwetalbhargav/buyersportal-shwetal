@@ -1,4 +1,4 @@
-export default function HistoryList() {
+export default function HistoryList({ buyerId }: { buyerId: string }) {
   // Fetch last 5 history items on server in page.tsx ideally; keep stub here
   return (
     <div className="bg-white p-4 rounded-lg">
