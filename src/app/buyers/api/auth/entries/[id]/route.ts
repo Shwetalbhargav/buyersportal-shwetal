@@ -8,7 +8,7 @@ type Entry = {
   notes: string | null;
 };
 
-// Safely derive the dynamic [id] segment without relying on the 2nd arg
+// Derive the dynamic [id] segment from the URL path
 function getId(req: NextRequest): string {
   const segments = req.nextUrl.pathname.split("/");
   return segments[segments.length - 1] || "";
@@ -34,6 +34,6 @@ export async function DELETE(req: NextRequest) {
   const id = getId(req);
 
   // TODO: perform deletion in DB using `id`
-  // On success, respond with 204 No Content
+  // On success:
   return new NextResponse(null, { status: 204 });
 }
