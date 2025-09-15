@@ -14,7 +14,8 @@ export default async function GuardOwner({
   const mappedUser = user
     ? {
         id: user.id,
-        role: user.role === "ADMIN" ? "admin" as "admin" : "user" as "user",
+       role: user.role === "ADMIN" ? "admin" as const : "user" as const,
+
       }
     : undefined;
 
