@@ -11,10 +11,14 @@ type Entry = {
 
 type EntryUpdate = Partial<Pick<Entry, 'email' | 'status' | 'notes'>>;
 
-export async function GET(_req: NextRequest, { params }: { params: IdParams }) {
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: { id: string } }
+) {
   const { id } = params;
+
   // TODO: fetch from DB
-  const entry: Entry = { id, email: 'user@example.com', status: 'active', notes: null };
+  const entry: Entry = { id, email: "user@example.com", status: "active", notes: null };
   return NextResponse.json(entry);
 }
 
