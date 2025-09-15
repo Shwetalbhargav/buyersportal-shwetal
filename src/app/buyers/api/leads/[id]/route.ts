@@ -1,6 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
-
-type IdParams = { id: string };
+// src/app/buyers/api/leads/[id]/route.ts
+import { NextRequest, NextResponse } from "next/server";
 
 export type Lead = {
   id: string;
@@ -11,22 +10,31 @@ export type Lead = {
   [k: string]: unknown;
 };
 
-type LeadUpdate = Partial<Omit<Lead, 'id'>>;
+type LeadUpdate = Partial<Omit<Lead, "id">>;
 
-export async function GET(_req: NextRequest, { params }: { params: IdParams }) {
-  const { id } = params;
-  const lead: Lead = { id, name: 'Lead' };
+// Helper to extract [id] from URL path
+function getId(req: NextRequest): string {
+  const parts = req.nextUrl.pathname.split("/");
+  return parts[parts.length - 1] || "";
+}
+
+// GET /buyers/api/leads/[id]
+export async function GET(req: NextRequest) {
+  const id = getId(req);
+  const lead: Lead = { id, name: "Lead" };
   return NextResponse.json(lead);
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: IdParams }) {
-  const { id } = params;
+// PATCH /buyers/api/leads/[id]
+export async function PATCH(req: NextRequest) {
+  const id = getId(req);
   const patch = (await req.json()) as LeadUpdate;
   const updated: Lead = { id, ...patch };
   return NextResponse.json(updated);
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: IdParams }) {
-  const { id } = params;
+// DELETE /buyers/api/leads/[id]
+export async function DELETE(req: NextRequest) {
+  const id = getId(req);
   return NextResponse.json({ deleted: id });
 }
