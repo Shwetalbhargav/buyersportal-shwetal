@@ -108,13 +108,17 @@ export default function BuyerForm({
   });
 
   function toDomain(): Partial<Buyer> {
-    // FIX 3: convert UI strings to domain types expected by Buyer / zod schema
-    const bhkVal =
-      form.bhk === ""
-        ? undefined
-        : form.bhk === "Studio"
-        ? "Studio"
-        : (Number(form.bhk) as 1 | 2 | 3 | 4);
+    // Convert UI string bhk to domain type: number or "Studio"
+    let bhkVal: 1 | 2 | 3 | 4 | "Studio" | null | undefined;
+    if (form.bhk === "") {
+      bhkVal = undefined;
+    } else if (form.bhk === "Studio") {
+      bhkVal = "Studio";
+    } else if (["1", "2", "3", "4"].includes(form.bhk)) {
+      bhkVal = parseInt(form.bhk, 10) as 1 | 2 | 3 | 4;
+    } else {
+      bhkVal = undefined;
+    }
 
     const payload: Partial<Buyer> = {
       fullName: form.fullName.trim() || undefined,
@@ -144,25 +148,32 @@ export default function BuyerForm({
     return payload;
   }
 
+  // src/components/buyers/BuyerForm.tsx
+// ...rest of the file unchanged...
+
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setMsg(null);
     try {
       const payload = toDomain();
+
       // Validate with your existing schemas (unchanged logic)
       const schema = mode === "create" ? buyerCreate : buyerUpdate;
-      const parsed = schema.parse(payload);
+
+      // ✅ zod guarantees shape; tell TS it's now a Partial<Buyer>
+      const parsed = schema.parse(payload) as Partial<Buyer>;
 
       if (mode === "create") {
-        await createBuyer(parsed);
+        await createBuyer(parsed as Partial<Buyer>);
       } else if (initial?.id) {
-        await updateBuyer(initial.id, parsed);
+        await updateBuyer(initial.id, parsed as Partial<Buyer>);
       }
       setMsg("Saved ✅");
     } catch (err) {
       setMsg(toMsg(err));
     }
   }
+
 
   return (
     <form onSubmit={onSubmit} className="space-y-3 bg-white p-4 rounded-lg">
