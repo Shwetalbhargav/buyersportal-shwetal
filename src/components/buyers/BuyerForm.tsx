@@ -1,176 +1,188 @@
-"use client";
-import { useState } from "react";
-import { buyerCreate, buyerUpdate } from "@/lib/zodSchemas";
-import { createBuyer, updateBuyer } from "@/lib/api";
-import type { Buyer } from "@/lib/types";
+// src/lib/csv.ts
+import type { CsvRow } from '@/lib/zodSchemas';
 
-export default function BuyerForm({
-  mode,
-  initial,
-}: {
-  mode: "create" | "edit";
-  initial?: Buyer;
-}) {
-  const [form, setForm] = useState<any>(
-    initial ?? { status: "New", tags: [] }
-  );
-  const [msg, setMsg] = useState<string | null>(null);
+export interface CsvStringifyOptions {
+  /** CSV delimiter (default ',') */
+  delimiter?: string;
+  /** Newline to use (default '\n') */
+  newline?: '\n' | '\r\n';
+  /** Order of columns; if omitted, inferred from first row */
+  columns?: string[];
+}
 
-  const isResi =
-    form.propertyType === "Apartment" || form.propertyType === "Villa";
+export interface CsvParseOptions {
+  /** CSV delimiter (default ',') */
+  delimiter?: string;
+  /** When true, trims surrounding whitespace of unquoted fields (default true) */
+  trim?: boolean;
+}
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    try {
-      const schema = mode === "create" ? buyerCreate : buyerUpdate;
-      const parsed = schema.parse({
-        ...form,
-        id: initial?.id,
-        updatedAt: initial?.updatedAt,
-      });
-      if (mode === "create") await createBuyer(parsed);
-      else await updateBuyer(initial!.id, parsed);
-      setMsg("Saved ✅");
-    } catch (err: any) {
-      setMsg(err?.message ?? "Failed");
+/**
+ * Convert array of objects (CsvRow) to CSV string.
+ * - Escapes quotes and wraps fields containing delimiter/quote/newline.
+ */
+export function toCsv(rows: CsvRow[], opts: CsvStringifyOptions = {}): string {
+  if (rows.length === 0) return '';
+  const delimiter = opts.delimiter ?? ',';
+  const nl = opts.newline ?? '\n';
+
+  const columns = opts.columns && opts.columns.length > 0
+    ? opts.columns
+    : Object.keys(rows[0] as Record<string, unknown>);
+
+  const lines: string[] = [];
+  lines.push(columns.join(delimiter));
+
+  for (const row of rows) {
+    const rec = row as Record<string, unknown>;
+    const fields = columns.map((col) => escapeCsvField(valueToString(rec[col]), delimiter));
+    lines.push(fields.join(delimiter));
+  }
+
+  return lines.join(nl);
+}
+
+/**
+ * Parse CSV text to array of CsvRow with header row detection.
+ * - Supports quoted fields, escaped quotes ("") and embedded newlines.
+ * - Uses first line as headers.
+ */
+export function parseCsv(text: string, opts: CsvParseOptions = {}): CsvRow[] {
+  const delimiter = opts.delimiter ?? ',';
+  const trim = opts.trim ?? true;
+
+  const input = stripBom(text);
+  if (input.trim().length === 0) return [];
+
+  const lines = tokenizeCsv(input, delimiter);
+  if (lines.length === 0) return [];
+
+  const headers = (lines[0] ?? []).map(h => (trim ? h.trim() : h));
+  const out: CsvRow[] = [];
+
+  for (let i = 1; i < lines.length; i += 1) {
+    const cols = lines[i] ?? [];
+    const obj: Record<string, unknown> = {};
+
+    for (let c = 0; c < headers.length; c += 1) {
+      const key = headers[c] ?? `col_${c}`;
+      const raw = cols[c] ?? '';
+      obj[key] = trim ? raw.trim() : raw;
     }
+
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+    out.push(obj as CsvRow);
   }
 
-  function bind<K extends string>(key: K, type?: "number" | "string") {
-    return {
-      value: form[key] ?? "",
-      onChange: (e: any) =>
-        setForm((s: any) => ({
-          ...s,
-          [key]: type === "number" ? Number(e.target.value) : e.target.value,
-        })),
-    };
+  return out;
+}
+
+/* -------------------- helpers -------------------- */
+
+function valueToString(v: unknown): string {
+  if (v === null || v === undefined) return '';
+  if (typeof v === 'string') return v;
+  if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+  // Fallback for objects/arrays/dates: JSON
+  try {
+    return JSON.stringify(v);
+  } catch {
+    return String(v);
+  }
+}
+
+function escapeCsvField(s: string, delimiter: string): string {
+  // Quote when field contains delimiter, quote, or newline
+  if (s.includes(delimiter) || s.includes('"') || /\r|\n/.test(s)) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
+}
+
+function stripBom(s: string): string {
+  return s.charCodeAt(0) === 0xfeff ? s.slice(1) : s;
+}
+
+/**
+ * Tokenizes CSV text into rows of fields honoring quotes/escapes/newlines.
+ * Returns array of rows, each a string[] of fields.
+ */
+function tokenizeCsv(text: string, delimiter: string): string[][] {
+  const rows: string[][] = [];
+  let field = '';
+  let row: string[] = [];
+
+  let i = 0;
+  const n = text.length;
+  let inQuotes = false;
+
+  while (i < n) {
+    const ch = text[i] ?? '';
+
+    if (inQuotes) {
+      if (ch === '"') {
+        const next = text[i + 1] ?? '';
+        if (next === '"') {
+          field += '"'; // escaped quote
+          i += 2;
+          continue;
+        }
+        inQuotes = false;
+        i += 1;
+        continue;
+      }
+      field += ch;
+      i += 1;
+      continue;
+    }
+
+    // not in quotes
+    if (ch === '"') {
+      inQuotes = true;
+      i += 1;
+      continue;
+    }
+    if (ch === delimiter) {
+      row.push(field);
+      field = '';
+      i += 1;
+      continue;
+    }
+    if (ch === '\n') {
+      row.push(field);
+      rows.push(row);
+      row = [];
+      field = '';
+      i += 1;
+      continue;
+    }
+    if (ch === '\r') {
+      // handle CRLF / CR
+      const next = text[i + 1] ?? '';
+      if (next === '\n') {
+        row.push(field);
+        rows.push(row);
+        row = [];
+        field = '';
+        i += 2;
+        continue;
+      } else {
+        row.push(field);
+        rows.push(row);
+        row = [];
+        field = '';
+        i += 1;
+        continue;
+      }
+    }
+
+    field += ch;
+    i += 1;
   }
 
-  return (
-    <form onSubmit={onSubmit} className="space-y-3 bg-white p-4 rounded-lg">
-      {msg && <div className="text-sm text-gray-700">{msg}</div>}
-      <div className="grid sm:grid-cols-2 gap-3">
-        <input
-          className="border p-2 rounded"
-          placeholder="Full Name"
-          {...bind("fullName")}
-        />
-        <input
-          className="border p-2 rounded"
-          placeholder="Phone"
-          {...bind("phone")}
-        />
-        <input
-          className="border p-2 rounded"
-          placeholder="Email"
-          {...bind("email")}
-        />
-        <select className="border p-2 rounded" {...bind("city")}>
-          <option value="">City</option>
-          {["Chandigarh", "Mohali", "Zirakpur", "Panchkula", "Other"].map(
-            (c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            )
-          )}
-        </select>
-        <select className="border p-2 rounded" {...bind("propertyType")}>
-          <option value="">Property Type</option>
-          {["Apartment", "Villa", "Plot", "Office", "Retail"].map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-        {isResi && (
-          <select className="border p-2 rounded" {...bind("bhk")}>
-            <option value="">BHK</option>
-            {["Studio", 1, 2, 3, 4].map((b) => (
-              <option key={b} value={String(b)}>
-                {String(b)}
-              </option>
-            ))}
-          </select>
-        )}
-        <select className="border p-2 rounded" {...bind("purpose")}>
-          <option value="">Purpose</option>
-          {["Buy", "Rent"].map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </select>
-        <input
-          className="border p-2 rounded"
-          placeholder="Budget Min"
-          type="number"
-          {...bind("budgetMin", "number")}
-        />
-        <input
-          className="border p-2 rounded"
-          placeholder="Budget Max"
-          type="number"
-          {...bind("budgetMax", "number")}
-        />
-        <select className="border p-2 rounded" {...bind("timeline")}>
-          <option value="">Timeline</option>
-          {["0-3m", "3-6m", ">6m", "Exploring"].map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
-        <select className="border p-2 rounded" {...bind("source")}>
-          <option value="">Source</option>
-          {["Website", "Referral", "Walk-in", "Call", "Other"].map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-        <select className="border p-2 rounded" {...bind("status")}>
-          {[
-            "New",
-            "Qualified",
-            "Contacted",
-            "Visited",
-            "Negotiation",
-            "Converted",
-            "Dropped",
-          ].map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-        {/* Tags: comma-separated input → array */}
-        <input
-          className="border p-2 rounded"
-          placeholder="tag1, tag2"
-          value={(form.tags ?? []).join(", ")}
-          onChange={(e) =>
-            setForm((s: any) => ({
-              ...s,
-              tags: e.target.value
-                .split(",")
-                .map((t) => t.trim())
-                .filter(Boolean),
-            }))
-          }
-        />
-      </div>
-      <textarea
-        className="border p-2 rounded w-full"
-        rows={4}
-        placeholder="Notes"
-        {...bind("notes")}
-      />
-      <div className="flex gap-2">
-        <button className="border px-4 py-2 rounded">Save</button>
-      </div>
-      {mode === "edit" && <input type="hidden" value={initial?.updatedAt} />}
-    </form>
-  );
+  // flush last field/row
+  row.push(field);
+  rows.push(row);
+
+  return rows;
 }
